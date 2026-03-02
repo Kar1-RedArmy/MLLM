@@ -35,3 +35,6 @@ data_files: [
 
 patch_pos_embed_type: post
 
+
+enable_coord_pos_embed: false
+coord_embed_scale: 1.0

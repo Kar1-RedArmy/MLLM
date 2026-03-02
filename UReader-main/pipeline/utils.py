@@ -179,5 +179,7 @@ def add_config_args(config, args):
     args.enable_vit_cut_embedding = config.get('enable_vit_cut_embedding',False)
     args.enable_vit_adapter = config.get('enable_vit_adapter',False)
     args.adapter_layer_indices = config.get('adapter_layer_indices','[5,11,17,23]')
+    args.enable_coord_pos_embed = config.get('enable_coord_pos_embed', False)
+    args.coord_embed_scale = config.get('coord_embed_scale', 1.0)
     
     # args.cut_embedding_ratio = config.get('cut_embedding_ratio',args.cut_embedding_ratio)

@@ -1,7 +1,7 @@
 from einops import rearrange, repeat
 import torch
 from torchvision import transforms
-from PIL import Image, ImageFilter
+from PIL import Image, ImageFilter, ImageOps
 import random
 from torchvision.ops.boxes import box_area
 from pipeline.data_utils.randaugment import RandomAugment
@@ -275,6 +275,137 @@ class DocNewMultiScaleSFTProcessor(DocNewSFTProcessor):
         
         image_input = torch.cat([nocut_image, image_input], dim=0)
         patch_position = torch.cat([torch.ones(1,2).long()*self.anchor_max, patch_position], dim=0) # 切片id为0~8
+        return image_input, patch_position
+
+
+@PROCESSORS.register_module()
+class DocAdaptiveMultiScaleSFTProcessor(DocNewMultiScaleSFTProcessor):
+    """
+    形状自适应裁剪模块（内容密度 + ROI）：
+    - 保留全图patch（global view）
+    - 基于内容密度图提议多个ROI，保持长宽比后缩放填充到统一尺寸
+    - 输出 (N, C, H, W) 和对应 patch_position 供后续位置编码使用
+    """
+
+    def __init__(
+        self,
+        image_size=224,
+        anchors=[(1, 1)],
+        roi_grid_size=12,
+        roi_window_size=3,
+        roi_stride=2,
+        max_roi_patches=8,
+        roi_score_threshold=0.15,
+    ):
+        super().__init__(image_size=image_size, anchors=anchors)
+        self.roi_grid_size = int(roi_grid_size)
+        self.roi_window_size = int(roi_window_size)
+        self.roi_stride = int(roi_stride)
+        self.max_roi_patches = int(max_roi_patches)
+        self.roi_score_threshold = float(roi_score_threshold)
+
+    def _content_density_map(self, image):
+        gray = transforms.ToTensor()(image.convert('L')).squeeze(0)
+        gx = torch.zeros_like(gray)
+        gy = torch.zeros_like(gray)
+        gx[:, 1:] = (gray[:, 1:] - gray[:, :-1]).abs()
+        gy[1:, :] = (gray[1:, :] - gray[:-1, :]).abs()
+        edge = gx + gy
+
+        mean = F.gaussian_blur(gray.unsqueeze(0), [3, 3], [1.0, 1.0]).squeeze(0)
+        var = (gray - mean).pow(2)
+        density = 0.7 * edge + 0.3 * var
+        density = density - density.min()
+        density = density / (density.max() + 1e-6)
+        return density
+
+    def _grid_rois(self, density, width, height):
+        grid = self.roi_grid_size
+        ws = min(self.roi_window_size, grid)
+        pooled = torch.nn.functional.adaptive_avg_pool2d(density.unsqueeze(0).unsqueeze(0), (grid, grid)).squeeze(0).squeeze(0)
+
+        candidates = []
+        for y in range(0, grid - ws + 1, self.roi_stride):
+            for x in range(0, grid - ws + 1, self.roi_stride):
+                score = pooled[y:y + ws, x:x + ws].mean().item()
+                if score < self.roi_score_threshold:
+                    continue
+                candidates.append((score, x, y, x + ws, y + ws))
+
+        candidates.sort(key=lambda x: x[0], reverse=True)
+
+        selected = []
+        for cand in candidates:
+            if len(selected) >= self.max_roi_patches:
+                break
+            _, x1, y1, x2, y2 = cand
+            ok = True
+            for _, sx1, sy1, sx2, sy2 in selected:
+                inter_w = max(0, min(x2, sx2) - max(x1, sx1))
+                inter_h = max(0, min(y2, sy2) - max(y1, sy1))
+                inter = inter_w * inter_h
+                area1 = (x2 - x1) * (y2 - y1)
+                area2 = (sx2 - sx1) * (sy2 - sy1)
+                iou = inter / (area1 + area2 - inter + 1e-6)
+                if iou > 0.4:
+                    ok = False
+                    break
+            if ok:
+                selected.append(cand)
+
+        rois = []
+        for _, x1, y1, x2, y2 in selected:
+            px1 = int(round(x1 / grid * width))
+            py1 = int(round(y1 / grid * height))
+            px2 = int(round(x2 / grid * width))
+            py2 = int(round(y2 / grid * height))
+            if px2 - px1 < 2 or py2 - py1 < 2:
+                continue
+            rois.append((px1, py1, px2, py2))
+
+        if len(rois) == 0:
+            rois = [(0, 0, width, height)]
+        return rois
+
+    def _crop_with_aspect_preserve(self, image, box):
+        x1, y1, x2, y2 = box
+        roi = image.crop((x1, y1, x2, y2))
+        # 保持长宽比，padding到固定输入尺寸
+        return ImageOps.pad(roi, (self.image_size[1], self.image_size[0]), method=Image.BICUBIC, color=(255, 255, 255), centering=(0.5, 0.5))
+
+    def _roi_position(self, box, width, height):
+        x1, y1, x2, y2 = box
+        cx = ((x1 + x2) * 0.5) / max(width, 1)
+        cy = ((y1 + y2) * 0.5) / max(height, 1)
+        gx = min(self.anchor_max - 1, max(0, int(cx * (self.anchor_max - 1))))
+        gy = min(self.anchor_max - 1, max(0, int(cy * (self.anchor_max - 1))))
+        return torch.tensor([gy, gx]).long()
+
+    def _process_image(self, image):
+        width, height = image.size
+
+        # global patch，防止ROI漏检关键语义
+        global_patch = self.image_transform(self.old_resizer(image)).unsqueeze(0)
+        global_pos = torch.ones(1, 2).long() * self.anchor_max
+
+        density = self._content_density_map(image)
+        rois = self._grid_rois(density, width, height)
+
+        roi_tensors = []
+        roi_positions = []
+        for box in rois[: self.max_roi_patches]:
+            roi_img = self._crop_with_aspect_preserve(image, box)
+            roi_tensors.append(self.image_transform(roi_img).unsqueeze(0))
+            roi_positions.append(self._roi_position(box, width, height).unsqueeze(0))
+
+        if len(roi_tensors) == 0:
+            return global_patch, global_pos
+
+        # 兼容 pre 模式中对 (0,0) 作为切片起始标记的逻辑
+        roi_positions[0] = torch.zeros_like(roi_positions[0])
+
+        image_input = torch.cat([global_patch] + roi_tensors, dim=0)
+        patch_position = torch.cat([global_pos] + roi_positions, dim=0)
         return image_input, patch_position
 
 if __name__ == '__main__':
