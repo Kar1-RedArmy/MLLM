@@ -8,7 +8,6 @@ import torch.distributed as dist
 
 from sconf import Config
 from icecream import ic
-from peft import LoraConfig, get_peft_model
 from transformers.training_args import TrainingArguments
 
 from mplug_owl import MplugOwlForConditionalGeneration, MplugOwlTokenizer
@@ -123,7 +122,22 @@ def parse_target_modules(spec: str):
     return [m.strip() for m in spec.split(',') if m.strip()]
 
 
+
+
+def _load_peft_symbols():
+    try:
+        from peft import LoraConfig, get_peft_model
+        return LoraConfig, get_peft_model
+    except ImportError as exc:
+        raise ImportError(
+            "Failed to import peft. This project expects a PEFT version compatible with "
+            "transformers==4.29.1 (for example peft==0.3.0). "
+            "Please reinstall dependencies, e.g. `pip install -r requirement_win.txt` on Windows."
+        ) from exc
+
+
 def attach_lora(module, target_modules, args):
+    LoraConfig, get_peft_model = _load_peft_symbols()
     peft_config = LoraConfig(
         target_modules=target_modules,
         inference_mode=args.inference_mode,
