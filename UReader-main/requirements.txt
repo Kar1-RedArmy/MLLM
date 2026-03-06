@@ -16,5 +16,6 @@ sentencepiece
 peft
 opencv-python
 decord
-chardet
+datasets
+chardet<6
 cchardet

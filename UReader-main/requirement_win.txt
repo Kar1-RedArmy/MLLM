@@ -17,5 +17,6 @@ sentencepiece
 peft==0.3.0
 opencv-python
 decord
-chardet
+datasets
+chardet<6
 # cchardet is intentionally excluded on Windows due to build-toolchain issues
