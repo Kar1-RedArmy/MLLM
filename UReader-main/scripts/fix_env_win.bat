@@ -9,6 +9,7 @@ REM   scripts\fix_env_win.bat myenv      (uses custom conda env)
 set ENV_NAME=MLLM
 if not "%~1"=="" set ENV_NAME=%~1
 
+echo [INFO] Script path: %~f0
 echo [1/7] Enter repo root...
 set ROOT=%~dp0..
 if exist "%ROOT%\UReader-main\pipeline\train.py" set ROOT=%ROOT%\UReader-main
@@ -20,6 +21,11 @@ if not exist "pipeline\train.py" (
   exit /b 1
 )
 
+
+if exist "C:\work\MLLM\pipeline\train.py" (
+  echo [WARN] Legacy checkout detected at C:\work\MLLM\pipeline\train.py
+  echo [WARN] This script will force current ROOT only: %ROOT%
+)
 
 where conda >nul 2>nul
 if errorlevel 1 (
