@@ -10,7 +10,8 @@ set ENV_NAME=MLLM
 if not "%~1"=="" set ENV_NAME=%~1
 
 echo [1/7] Enter repo root...
-cd /d "%~dp0.."
+set ROOT=%~dp0..
+cd /d "%ROOT%"
 echo [INFO] Repo root: %CD%
 if not exist "pipeline\train.py" (
   echo [ERROR] Please run this script inside UReader-main\scripts.
@@ -68,7 +69,11 @@ if errorlevel 1 (
   exit /b 1
 )
 
+set PYTHONPATH=%CD%
+echo [INFO] PYTHONPATH set to: %PYTHONPATH%
+
 echo [6/7] Runtime diagnostics...
+python -c "import os, pipeline; print('cwd', os.getcwd()); print('pipeline path', pipeline.__file__)"
 python -c "import torch, torchvision, transformers, peft, chardet; import torchvision.ops as ops; print('torch', torch.__version__); print('torchvision', torchvision.__version__); print('transformers', transformers.__version__); print('peft', peft.__version__); print('chardet', chardet.__version__); print('cuda runtime', torch.version.cuda); print('cuda available', torch.cuda.is_available()); print('nms ok', hasattr(ops, 'nms'))"
 if errorlevel 1 (
   echo [ERROR] Runtime diagnostic failed.
@@ -76,7 +81,7 @@ if errorlevel 1 (
 )
 
 echo [7/7] Train entry smoke test...
-python -m pipeline.train --help >nul
+python "%CD%\pipeline\train.py" --help >nul
 if errorlevel 1 (
   echo [ERROR] Training entry still fails. Please share full traceback.
   exit /b 1
