@@ -29,7 +29,7 @@ micro_batch_size=4
 global_batch_size=256
 gradient_accumulation_steps=1
 
-SAVE_NAME=${ureader}_${max_length}_${global_batch_size}
+SAVE_NAME=${EXP_NAME}_${max_length}_${global_batch_size}
 
 SAVE_PATH="./output/${EXP_NAME}/"
 TENSORBOARD_PATH="./tensorboard/sft/${SAVE_NAME}/"
@@ -54,7 +54,6 @@ options=" \
 	--seq-length ${max_length} \
 	--micro-batch-size ${micro_batch_size} \
 	--global-batch-size ${global_batch_size} \
-	--num-training-steps ${train_iters} \
     --train-epochs ${train_epochs} \
 	--num-warmup-steps ${lr_warmup_iters} \
 	--gradient-accumulation-steps ${gradient_accumulation_steps} \
@@ -69,7 +68,7 @@ options=" \
 	--adam-beta1 0.9 \
 	--adam-beta2 0.999 \
 	--num-workers 16 \
-	--use-lora \
+	--lora-on-language \
 	--gradient-checkpointing \
 	--bf16"
 

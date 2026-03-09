@@ -974,7 +974,16 @@ class MplugOwlVisualAbstractorModel(MplugOwlPreTrainedModel):
             self.cut_patch_embedding_h = torch.nn.Embedding(self.cut_num, self.config.hidden_size)
             self.cut_patch_embedding_w = torch.nn.Embedding(self.cut_num, self.config.hidden_size)
         self.patch_pos_embed_type = args.patch_pos_embed_type
-        
+        self.enable_coord_pos_embed = getattr(args, 'enable_coord_pos_embed', False)
+        self.coord_embed_scale = float(getattr(args, 'coord_embed_scale', 1.0))
+
+        if self.enable_coord_pos_embed:
+            self.coord_mlp = nn.Sequential(
+                nn.Linear(4, self.config.hidden_size),
+                QuickGELU(),
+                nn.Linear(self.config.hidden_size, self.config.hidden_size),
+            )
+
         self.post_init()
 
     def _prune_heads(self, heads_to_prune):
@@ -984,6 +993,24 @@ class MplugOwlVisualAbstractorModel(MplugOwlPreTrainedModel):
         """
         for layer, heads in heads_to_prune.items():
             self.encoder.layer[layer].attention.prune_heads(heads)
+
+
+    def _build_coord_embedding(self, patch_positions, ref_states):
+        if patch_positions is None:
+            return None
+
+        patch_pos = patch_positions.to(ref_states.device).float()
+        norm = max(float(self.cut_num - 1), 1.0)
+        # 使用中心坐标 + 近似尺度信息作为连续二维上下文
+        x = patch_pos[:, 1:2] / norm
+        y = patch_pos[:, 0:1] / norm
+        w = torch.full_like(x, 1.0 / norm)
+        h = torch.full_like(y, 1.0 / norm)
+        coord_feat = torch.cat([x, y, w, h], dim=1)
+
+        coord_embedding = self.coord_mlp(coord_feat).to(ref_states.dtype)
+        coord_embedding = einops.repeat(coord_embedding, 'N D -> N num_token D', num_token=ref_states.shape[1])
+        return coord_embedding * self.coord_embed_scale
 
     def get_extended_attention_mask(
         self,
@@ -1078,6 +1105,10 @@ class MplugOwlVisualAbstractorModel(MplugOwlPreTrainedModel):
             else:
                 patch_embedding = (self.cut_patch_embedding_h(patch_positions[:,0]) + self.cut_patch_embedding_w(patch_positions[:,1]))*0.5
                 patch_embedding = einops.repeat(patch_embedding, 'N D -> N num_token D', num_token=encoder_hidden_states.shape[1])
+                if self.enable_coord_pos_embed:
+                    coord_embedding = self._build_coord_embedding(patch_positions, encoder_hidden_states)
+                    if coord_embedding is not None:
+                        patch_embedding = patch_embedding + coord_embedding
                 patch_embedding = encoder_hidden_states + patch_embedding
             cut_index = (patch_positions==0).all(dim=1).nonzero().squeeze(1).tolist()
             patch_group = [patch_embedding[cut:] if ci==len(cut_index)-1 else patch_embedding[cut:cut_index[ci+1]] for ci,cut in enumerate(cut_index)] 
@@ -1146,6 +1177,10 @@ class MplugOwlVisualAbstractorModel(MplugOwlPreTrainedModel):
             else:
                 patch_embedding = (self.cut_patch_embedding_h(patch_positions[:,0]) + self.cut_patch_embedding_w(patch_positions[:,1]))*0.5
                 patch_embedding = einops.repeat(patch_embedding, 'N D -> N num_token D', num_token=sequence_output.shape[1])
+                if self.enable_coord_pos_embed:
+                    coord_embedding = self._build_coord_embedding(patch_positions, sequence_output)
+                    if coord_embedding is not None:
+                        patch_embedding = patch_embedding + coord_embedding
                 sequence_output = sequence_output + patch_embedding
 
         sequence_output = self.visual_fc(sequence_output)

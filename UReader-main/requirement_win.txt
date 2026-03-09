@@ -13,9 +13,10 @@ tensorboardX
 tensorboard
 h5py
 sentencepiece
+# Keep PEFT compatible with transformers==4.29.1
 peft==0.3.0
 opencv-python
 decord
 datasets
 chardet<6
-cchardet
+# cchardet is intentionally excluded on Windows due to build-toolchain issues

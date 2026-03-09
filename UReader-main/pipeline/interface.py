@@ -1,20 +1,49 @@
 import torch
-import numpy as np
-import requests
 from PIL import Image
+from peft import PeftModel
+
 from mplug_owl.modeling_mplug_owl import MplugOwlForConditionalGeneration
 from mplug_owl.tokenization_mplug_owl import MplugOwlTokenizer
-from mplug_owl.processing_mplug_owl import MplugOwlImageProcessor, MplugOwlProcessor
+from mplug_owl.processing_mplug_owl import MplugOwlProcessor
 from sconf import Config
 from pipeline.data_utils.processors.builder import build_processors
 
 
-def get_model(pretrained_ckpt, use_bf16=False):
-    """Model Provider with tokenizer and processor. 
+def _load_adapter(base_module, adapter_path, adapter_name='default', is_trainable=False):
+    if adapter_path is None:
+        return base_module
+
+    # First adapter wraps base module; subsequent adapters can be hot-loaded
+    if isinstance(base_module, PeftModel):
+        base_module.load_adapter(adapter_path, adapter_name=adapter_name, is_trainable=is_trainable)
+        base_module.set_adapter(adapter_name)
+        return base_module
+
+    return PeftModel.from_pretrained(
+        base_module,
+        adapter_path,
+        adapter_name=adapter_name,
+        is_trainable=is_trainable,
+    )
+
+
+def get_model(
+    pretrained_ckpt,
+    use_bf16=False,
+    language_adapter_path=None,
+    abstractor_adapter_path=None,
+    vision_adapter_path=None,
+    adapter_name='default',
+):
+    """Model Provider with tokenizer and processor.
 
     Args:
         pretrained_ckpt (string): The path to pre-trained checkpoint.
-        use_bf16 (bool, optional): Whether to use bfloat16 to load the model. Defaults to False.
+        use_bf16 (bool, optional): Whether to use bfloat16 to load the model.
+        language_adapter_path (str, optional): LoRA adapter path for language_model.
+        abstractor_adapter_path (str, optional): LoRA adapter path for abstractor.
+        vision_adapter_path (str, optional): LoRA adapter path for vision_model.
+        adapter_name (str, optional): Adapter name for runtime switch.
 
     Returns:
         model: MplugOwl Model
@@ -25,6 +54,11 @@ def get_model(pretrained_ckpt, use_bf16=False):
         pretrained_ckpt,
         torch_dtype=torch.bfloat16 if use_bf16 else torch.half,
     )
+
+    model.language_model = _load_adapter(model.language_model, language_adapter_path, adapter_name=adapter_name)
+    model.abstractor = _load_adapter(model.abstractor, abstractor_adapter_path, adapter_name=adapter_name)
+    model.vision_model = _load_adapter(model.vision_model, vision_adapter_path, adapter_name=adapter_name)
+
     config = Config('configs/sft/release.yaml')
     image_processor = build_processors(config['valid_processors'])['sft']
     tokenizer = MplugOwlTokenizer.from_pretrained(pretrained_ckpt)
@@ -32,20 +66,24 @@ def get_model(pretrained_ckpt, use_bf16=False):
     return model, tokenizer, processor
 
 
+def switch_adapter(model, adapter_name='default'):
+    """Switch currently active LoRA adapter across pluggable modules."""
+    for module_name in ['language_model', 'abstractor', 'vision_model']:
+        module = getattr(model, module_name, None)
+        if isinstance(module, PeftModel):
+            module.set_adapter(adapter_name)
+
+
+def unload_adapter(model):
+    """Merge and unload adapters for deployment if modules are PEFT-wrapped."""
+    for module_name in ['language_model', 'abstractor', 'vision_model']:
+        module = getattr(model, module_name, None)
+        if isinstance(module, PeftModel):
+            setattr(model, module_name, module.merge_and_unload())
+
+
 def do_generate(prompts, image_list, model, tokenizer, processor, use_bf16=False, **generate_kwargs):
-    """The interface for generation
-
-    Args:
-        prompts (List[str]): The prompt text
-        image_list (List[str]): Paths of images
-        model (MplugOwlForConditionalGeneration): MplugOwlForConditionalGeneration
-        tokenizer (MplugOwlTokenizer): MplugOwlTokenizer
-        processor (MplugOwlProcessor): MplugOwlProcessor
-        use_bf16 (bool, optional): Whether to use bfloat16. Defaults to False.
-
-    Returns:
-        sentence (str): Generated sentence.
-    """
+    """The interface for generation."""
     if image_list:
         images = [Image.open(_) for _ in image_list]
     else:
@@ -61,4 +99,3 @@ def do_generate(prompts, image_list, model, tokenizer, processor, use_bf16=False
 
 if __name__ == '__main__':
     pass
-  
