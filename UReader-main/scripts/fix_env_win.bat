@@ -42,9 +42,20 @@ if errorlevel 1 (
 
 echo [5/7] Installing project dependencies...
 python -m pip install --upgrade pip
-python -m pip install -r requirement_win.txt
+
+set REQ_FILE=requirement_win.txt
+if exist "requiremnet_win.txt" set REQ_FILE=requiremnet_win.txt
+if not exist "%REQ_FILE%" (
+  echo [ERROR] Cannot find requirement file in repo root.
+  echo [ERROR] Expected one of: requirement_win.txt or requiremnet_win.txt
+  dir /b *.txt
+  exit /b 1
+)
+
+echo [INFO] Using requirement file: %REQ_FILE%
+python -m pip install -r %REQ_FILE%
 if errorlevel 1 (
-  echo [ERROR] Failed to install requirement_win.txt
+  echo [ERROR] Failed to install %REQ_FILE%
   exit /b 1
 )
 
