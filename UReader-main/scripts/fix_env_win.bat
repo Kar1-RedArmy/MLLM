@@ -11,6 +11,7 @@ if not "%~1"=="" set ENV_NAME=%~1
 
 echo [1/7] Enter repo root...
 cd /d "%~dp0.."
+echo [INFO] Repo root: %CD%
 if not exist "pipeline\train.py" (
   echo [ERROR] Please run this script inside UReader-main\scripts.
   exit /b 1
@@ -59,10 +60,18 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo [6/7] Runtime diagnostics...
-python -c "import torch, torchvision; import torchvision.ops as ops; print('torch', torch.__version__); print('torchvision', torchvision.__version__); print('cuda runtime', torch.version.cuda); print('cuda available', torch.cuda.is_available()); print('nms ok', hasattr(ops, 'nms'))"
+echo [INFO] Forcing PEFT/Transformers/Chardet compatible versions...
+python -m pip uninstall -y peft transformers chardet >nul 2>nul
+python -m pip install --no-cache-dir transformers==4.29.1 peft==0.3.0 "chardet<6"
 if errorlevel 1 (
-  echo [ERROR] Torch/Torchvision runtime check failed.
+  echo [ERROR] Failed to force compatible peft/transformers/chardet versions.
+  exit /b 1
+)
+
+echo [6/7] Runtime diagnostics...
+python -c "import torch, torchvision, transformers, peft, chardet; import torchvision.ops as ops; print('torch', torch.__version__); print('torchvision', torchvision.__version__); print('transformers', transformers.__version__); print('peft', peft.__version__); print('chardet', chardet.__version__); print('cuda runtime', torch.version.cuda); print('cuda available', torch.cuda.is_available()); print('nms ok', hasattr(ops, 'nms'))"
+if errorlevel 1 (
+  echo [ERROR] Runtime diagnostic failed.
   exit /b 1
 )
 
