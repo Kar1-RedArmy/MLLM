@@ -44,8 +44,8 @@ echo [3/7] Cleaning conflicting torch installs...
 python -m pip uninstall -y torch torchvision torchaudio >nul 2>nul
 call conda remove -y pytorch torchvision torchaudio pytorch-cuda >nul 2>nul
 
-echo [4/7] Installing matched torch/torchvision/torchaudio (CUDA 12.1 runtime)...
-call conda install -y pytorch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 pytorch-cuda=12.1 -c pytorch -c nvidia
+echo [4/7] Installing mPLUG-Owl aligned torch/torchvision/torchaudio stack...
+call conda install -y pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 cudatoolkit=11.7 -c pytorch -c nvidia
 if errorlevel 1 (
   echo [ERROR] Failed to install PyTorch stack.
   exit /b 1
