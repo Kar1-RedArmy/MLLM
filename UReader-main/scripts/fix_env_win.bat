@@ -11,12 +11,15 @@ if not "%~1"=="" set ENV_NAME=%~1
 
 echo [1/7] Enter repo root...
 set ROOT=%~dp0..
+if exist "%ROOT%\UReader-main\pipeline\train.py" set ROOT=%ROOT%\UReader-main
 cd /d "%ROOT%"
 echo [INFO] Repo root: %CD%
 if not exist "pipeline\train.py" (
-  echo [ERROR] Please run this script inside UReader-main\scripts.
+  echo [ERROR] Cannot find pipeline\train.py under repo root.
+  echo [ERROR] Current ROOT=%ROOT%
   exit /b 1
 )
+
 
 where conda >nul 2>nul
 if errorlevel 1 (
@@ -72,7 +75,15 @@ if errorlevel 1 (
 set PYTHONPATH=%CD%
 echo [INFO] PYTHONPATH set to: %PYTHONPATH%
 
+findstr /C:"from transformers.training_args import TrainingArguments" "%ROOT%\pipeline\train.py" >nul
+if errorlevel 1 (
+  echo [ERROR] Unexpected train.py detected: %ROOT%\pipeline\train.py
+  echo [ERROR] It does not match expected updated UReader-main entrypoint.
+  exit /b 1
+)
+
 echo [6/7] Runtime diagnostics...
+echo [INFO] Train entry path: %ROOT%\pipeline\train.py
 python -c "import os, pipeline; print('cwd', os.getcwd()); print('pipeline path', pipeline.__file__)"
 python -c "import torch, torchvision, transformers, peft, chardet; import torchvision.ops as ops; print('torch', torch.__version__); print('torchvision', torchvision.__version__); print('transformers', transformers.__version__); print('peft', peft.__version__); print('chardet', chardet.__version__); print('cuda runtime', torch.version.cuda); print('cuda available', torch.cuda.is_available()); print('nms ok', hasattr(ops, 'nms'))"
 if errorlevel 1 (
@@ -81,7 +92,7 @@ if errorlevel 1 (
 )
 
 echo [7/7] Train entry smoke test...
-python "%CD%\pipeline\train.py" --help >nul
+python "%ROOT%\pipeline\train.py" --help >nul
 if errorlevel 1 (
   echo [ERROR] Training entry still fails. Please share full traceback.
   exit /b 1
