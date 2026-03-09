@@ -64,6 +64,9 @@ We provide interface to build model and processer in ```pipeline/interface.py```
 
 A offline demo can be start by ```python -m app```
 
+### Windows Troubleshooting
+If you still hit old training-entry errors after `git pull`, follow `docs/WINDOWS_SYNC_TROUBLESHOOT_CN.md` for branch/path checks and the one-click repair workflow.
+
 ### Evaluation
 * Install java for pycocoevalcap. 
 ```
