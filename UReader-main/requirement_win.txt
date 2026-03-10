@@ -13,7 +13,9 @@ tensorboardX
 tensorboard
 h5py
 sentencepiece
-peft
+peft==0.2.0
 opencv-python
 decord
-chardet
+chardet==5.2.0
+numpy==1.23.5
+datasets==2.14.7

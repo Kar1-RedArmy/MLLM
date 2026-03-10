@@ -1,7 +1,8 @@
+
 @echo off
 setlocal enabledelayedexpansion
 
-REM One-click Windows environment repair for UReader-main
+REM One-click Windows environment repair for UReader-main (aligned with README: PyTorch 1.13.1 + CUDA 11.7)
 REM Usage:
 REM   scripts\fix_env_win.bat            (uses env name MLLM)
 REM   scripts\fix_env_win.bat myenv      (uses custom conda env)
@@ -33,8 +34,8 @@ echo [3/7] Cleaning conflicting torch installs...
 python -m pip uninstall -y torch torchvision torchaudio >nul 2>nul
 call conda remove -y pytorch torchvision torchaudio pytorch-cuda >nul 2>nul
 
-echo [4/7] Installing matched torch/torchvision/torchaudio (CUDA 12.1 runtime)...
-call conda install -y pytorch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 pytorch-cuda=12.1 -c pytorch -c nvidia
+echo [4/7] Installing matched torch/torchvision/torchaudio (PyTorch 1.13.1 + CUDA 11.7)...
+call conda install -y pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cuda=11.7 -c pytorch -c nvidia
 if errorlevel 1 (
   echo [ERROR] Failed to install PyTorch stack.
   exit /b 1
@@ -42,12 +43,9 @@ if errorlevel 1 (
 
 echo [5/7] Installing project dependencies...
 python -m pip install --upgrade pip
-python -m pip install -r requirement_win.txt
-python -m pip install datasets  REM Install missing Hugging Face datasets library
-python -m pip install requests --upgrade  REM Upgrade requests to fix dependency warnings
-python -m pip install urllib3<2.0 chardet<6.0 charset-normalizer  REM Pin compatible dependencies
+python -m pip install --no-deps -r requirement_win.txt
 if errorlevel 1 (
-  echo [ERROR] Failed to install requirement_win.txt, datasets, or requests fixes
+  echo [ERROR] Failed to install requirement_win.txt
   exit /b 1
 )
 
