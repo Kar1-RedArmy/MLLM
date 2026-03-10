@@ -38,6 +38,17 @@ if errorlevel 1 (
   exit /b 1
 )
 
+REM Conda may solve successfully but still leave torchvision/torchaudio unavailable.
+python -c "import torch, torchvision, torchaudio" >nul 2>nul
+if errorlevel 1 (
+  echo [WARN] Conda install incomplete. Falling back to pip wheels for cu117...
+  python -m pip install --no-deps --index-url https://download.pytorch.org/whl/cu117 torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1
+  if errorlevel 1 (
+    echo [ERROR] Failed to install PyTorch stack via pip fallback.
+    exit /b 1
+  )
+)
+
 echo [5/7] Installing project dependencies...
 python -m pip install --upgrade pip
 python -m pip install --no-deps -r requirement_win.txt
@@ -54,7 +65,7 @@ if errorlevel 1 (
 )
 
 echo [6/7] Runtime diagnostics...
-python -c "import torch, torchvision, numpy, datasets; import torchvision.ops as ops; print('torch', torch.__version__); print('torchvision', torchvision.__version__); print('numpy', numpy.__version__); print('datasets', datasets.__version__); print('cuda runtime', torch.version.cuda); print('cuda available', torch.cuda.is_available()); print('nms ok', hasattr(ops, 'nms'))"
+python -c "import torch, torchvision, torchaudio, numpy, datasets; import torchvision.ops as ops; print('torch', torch.__version__); print('torchvision', torchvision.__version__); print('torchaudio', torchaudio.__version__); print('numpy', numpy.__version__); print('datasets', datasets.__version__); print('cuda runtime', torch.version.cuda); print('cuda available', torch.cuda.is_available()); print('nms ok', hasattr(ops, 'nms'))"
 if errorlevel 1 (
   echo [ERROR] Torch/Torchvision runtime check failed.
   exit /b 1
