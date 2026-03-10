@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 REM One-click Windows environment repair for UReader-main
 REM Usage: scripts\fix_env_win.bat
 
-set SCRIPT_REV=main-integrated-check-train-20260310
+set SCRIPT_REV=main-stable-envfix-20260310
 echo [INFO] fix_env_win.bat revision: %SCRIPT_REV%
 
 set ENV_NAME=MLLM
@@ -31,7 +31,7 @@ if errorlevel 1 (
 )
 
 echo [3/7] Cleaning conflicting packages...
-python -m pip uninstall -y torch torchvision torchaudio numpy datasets pyarrow requests urllib3 chardet charset-normalizer >nul 2>nul
+python -m pip uninstall -y torch torchvision torchaudio numpy datasets pyarrow chardet charset-normalizer >nul 2>nul
 call conda remove -y pytorch torchvision torchaudio pytorch-cuda >nul 2>nul
 
 echo [4/7] Installing PyTorch 1.13.1 + CUDA 11.7...
@@ -60,6 +60,13 @@ if errorlevel 1 (
   exit /b 1
 )
 
+REM Install transitive runtime deps that are needed by torchvision/datasets in this repo setup.
+python -m pip install requests==2.31.0 urllib3==2.0.7
+if errorlevel 1 (
+  echo [ERROR] Failed to install requests/urllib3 runtime deps
+  exit /b 1
+)
+
 REM Some mirrors intermittently skip datasets during batch install; enforce it explicitly.
 python -m pip install --no-deps datasets==2.14.7
 if errorlevel 1 (
@@ -67,16 +74,23 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM datasets imports pyarrow; force a known-good wheel to avoid DLL load issues on Windows.
+REM datasets imports pyarrow; keep pyarrow pinned and avoid pulling incompatible numpy.
 python -m pip uninstall -y pyarrow >nul 2>nul
-python -m pip install --no-cache-dir --force-reinstall pyarrow==14.0.2
+python -m pip install --no-cache-dir --force-reinstall --no-deps pyarrow==14.0.2
 if errorlevel 1 (
   echo [ERROR] Failed to install pyarrow==14.0.2
   exit /b 1
 )
 
+REM Re-assert numpy pin in case any previous step changed it.
+python -m pip install --no-deps --force-reinstall numpy==1.23.5
+if errorlevel 1 (
+  echo [ERROR] Failed to pin numpy==1.23.5
+  exit /b 1
+)
+
 echo [6/7] Runtime diagnostics...
-python -c "import torch, torchvision, torchaudio, numpy; import torchvision.ops as ops; print('torch', torch.__version__); print('torchvision', torchvision.__version__); print('torchaudio', torchaudio.__version__); print('numpy', numpy.__version__); print('cuda runtime', torch.version.cuda); print('cuda available', torch.cuda.is_available()); print('nms ok', hasattr(ops, 'nms'))"
+python -c "import torch, torchvision, torchaudio, numpy, requests, urllib3; import torchvision.ops as ops; print('torch', torch.__version__); print('torchvision', torchvision.__version__); print('torchaudio', torchaudio.__version__); print('numpy', numpy.__version__); print('requests', requests.__version__); print('urllib3', urllib3.__version__); print('cuda runtime', torch.version.cuda); print('cuda available', torch.cuda.is_available()); print('nms ok', hasattr(ops, 'nms'))"
 if errorlevel 1 (
   echo [ERROR] Torch/Torchvision runtime check failed.
   exit /b 1
