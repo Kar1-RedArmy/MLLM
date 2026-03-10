@@ -4,6 +4,9 @@ setlocal enabledelayedexpansion
 REM One-click Windows environment repair for UReader-main
 REM Usage: scripts\fix_env_win.bat
 
+set SCRIPT_REV=main-integrated-check-train-20260310
+echo [INFO] fix_env_win.bat revision: %SCRIPT_REV%
+
 set ENV_NAME=MLLM
 if not "%~1"=="" set ENV_NAME=%~1
 
