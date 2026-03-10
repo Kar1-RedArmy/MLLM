@@ -46,9 +46,15 @@ if errorlevel 1 (
   exit /b 1
 )
 
+REM Some mirrors intermittently skip datasets during batch install; enforce it explicitly.
+python -m pip install --no-deps datasets==2.14.7
+if errorlevel 1 (
+  echo [ERROR] Failed to install datasets==2.14.7
+  exit /b 1
+)
 
 echo [6/7] Runtime diagnostics...
-python -c "import torch, torchvision, numpy, datasets; import torchvision.ops as ops; print('torch', torch.__version__); print('torchvision', torchvision.__version__); print('numpy', numpy.__version__); print('cuda runtime', torch.version.cuda); print('cuda available', torch.cuda.is_available()); print('nms ok', hasattr(ops, 'nms'))"
+python -c "import torch, torchvision, numpy, datasets; import torchvision.ops as ops; print('torch', torch.__version__); print('torchvision', torchvision.__version__); print('numpy', numpy.__version__); print('datasets', datasets.__version__); print('cuda runtime', torch.version.cuda); print('cuda available', torch.cuda.is_available()); print('nms ok', hasattr(ops, 'nms'))"
 if errorlevel 1 (
   echo [ERROR] Torch/Torchvision runtime check failed.
   exit /b 1
