@@ -6,17 +6,22 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.distributed import DistributedSampler
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from sconf import Config
 from icecream import ic
 from peft import LoraConfig, get_peft_config, get_peft_model
 from transformers import Trainer
 from transformers.training_args import TrainingArguments
 
-from mplug_owl import MplugOwlForConditionalGeneration, MplugOwlTokenizer
-from pipeline.data_utils import train_valid_test_datasets_provider
-from pipeline.utils import batchify, set_args
-from pipeline.trainer import CustomTrainer
-from pipeline.utils import add_config_args
+from UReader.mplug_owl import MplugOwlForConditionalGeneration, MplugOwlTokenizer
+
+from UReader.pipeline.data_utils import train_valid_test_datasets_provider
+from UReader.pipeline.utils import batchify, set_args
+from UReader.pipeline.trainer import CustomTrainer
+from UReader.pipeline.utils import add_config_args
 
 parser = argparse.ArgumentParser()
 # Model

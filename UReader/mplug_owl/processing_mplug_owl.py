@@ -6,7 +6,7 @@ import torch.utils.checkpoint
 from transformers.processing_utils import ProcessorMixin
 from transformers.tokenization_utils_base import BatchEncoding
 from transformers.models.clip.image_processing_clip import CLIPImageProcessor
-from pipeline.utils import get_args
+from UReader.pipeline.utils import get_args
 
 media_token = ({"image": ("<image>", 65)},)
 

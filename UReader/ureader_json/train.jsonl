@@ -1,0 +1,2 @@
+{"task_type":"dummy_sft","image":["test.jpg"],"text":{"prompt":"","completion":"Human: <image>\n请简要描述这张图片。\nAI: 这是一张用于联调训练流程的测试图片。"}}
+{"task_type":"dummy_sft","image":["test.jpg"],"text":{"prompt":"","completion":"Human: <image>\n图片里主要颜色是什么？\nAI: 主要颜色以测试图中占比最高的颜色为主。"}}

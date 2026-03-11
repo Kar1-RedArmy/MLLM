@@ -4,7 +4,7 @@ from torchvision import transforms
 from PIL import Image, ImageFilter
 import random
 from torchvision.ops.boxes import box_area
-from pipeline.data_utils.randaugment import RandomAugment
+from UReader.pipeline.data_utils.randaugment import RandomAugment
 from .builder import PROCESSORS
 from torchvision.transforms.transforms import InterpolationMode
 from torchvision.transforms import functional as F

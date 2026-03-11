@@ -20,7 +20,7 @@ from icecream import ic
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset, Subset
 
-from pipeline.utils import get_args
+from UReader.pipeline.utils import get_args
 
 from .processors.builder import build_processors
 from datasets import load_dataset

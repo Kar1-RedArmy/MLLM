@@ -9,7 +9,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from transformers import Trainer
 
-from pipeline.utils import batchify
+from UReader.pipeline.utils import batchify
 
     
 class CustomTrainer(Trainer):

@@ -3,7 +3,7 @@ from torchvision import transforms
 from PIL import Image
 import random
 
-from pipeline.data_utils.randaugment import RandomAugment
+from UReader.pipeline.data_utils.randaugment import RandomAugment
 from .builder import PROCESSORS
 
 

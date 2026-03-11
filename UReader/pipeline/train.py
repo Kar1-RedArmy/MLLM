@@ -1,6 +1,8 @@
 import argparse
 from functools import partial
 
+import platform
+
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader, Dataset
@@ -13,10 +15,14 @@ from transformers import Trainer
 from transformers.training_args import TrainingArguments
 
 from mplug_owl import MplugOwlForConditionalGeneration, MplugOwlTokenizer
-from pipeline.data_utils import train_valid_test_datasets_provider
-from pipeline.utils import batchify, set_args
-from pipeline.trainer import CustomTrainer
-from pipeline.utils import add_config_args
+from pipeline_old.data_utils import train_valid_test_datasets_provider
+from pipeline_old.trainer import CustomTrainer
+from pipeline_old.utils import add_config_args, set_args
+
+# from pipeline.data_utils import train_valid_test_datasets_provider
+# from pipeline.utils import batchify, set_args
+# from pipeline.trainer import CustomTrainer
+# from pipeline.utils import add_config_args
 
 parser = argparse.ArgumentParser()
 # Model
@@ -118,8 +124,9 @@ def get_accumulation_step(args):
     return accumulation_step
     
 def main():
-    args, left_argv = parser.parse_known_args()  
-    torch.distributed.init_process_group(backend="nccl")
+    args, left_argv = parser.parse_known_args()
+    backend = "gloo" if platform.system() == "Windows" else "nccl"
+    torch.distributed.init_process_group(backend=backend)
     ic(left_argv)
     config = Config(args.mm_config)
     add_config_args(config, args)
