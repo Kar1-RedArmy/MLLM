@@ -44,7 +44,7 @@ from transformers.utils import (
 from transformers.models.auto import AutoModelForCausalLM
 from .configuration_mplug_owl import MplugOwlConfig, MplugOwlVisionConfig, MplugOwlVisualAbstractorConfig
 
-from pipeline.utils import get_args
+from UReader.pipeline.utils import get_args
 import einops
 from torch.nn.utils.rnn import pad_sequence
 

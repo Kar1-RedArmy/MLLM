@@ -1,0 +1,1 @@
+{"task_type":"dummy_sft","image":["test.jpg"],"text":{"prompt":"","completion":"Human: <image>\n请用一句话总结图片内容。\nAI: 这是用于验证训练管线可用性的示例图像。"}}

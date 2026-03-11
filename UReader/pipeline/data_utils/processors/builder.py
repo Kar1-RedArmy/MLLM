@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from icecream import ic
-from pipeline.data_utils.registry import Registry, build_from_cfg
+from UReader.pipeline.data_utils.registry import Registry, build_from_cfg
 # from .data_utils.registry import Registry, build_from_cfg
 
 PROCESSORS = Registry('processors')
